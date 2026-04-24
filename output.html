@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="" xml:lang="">
+<head>
+  <meta charset="utf-8" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <title>Qwen_markdown_20260424_osg9d4o3u</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+<nav id="TOC" role="doc-toc">
+<ul>
+<li><a href="#esp32-security-system-tutorial"
+id="toc-esp32-security-system-tutorial">ESP32 Security System
+Tutorial</a>
+<ul>
+<li><a href="#project-overview" id="toc-project-overview">Project
+Overview</a></li>
+<li><a href="#bill-of-materials" id="toc-bill-of-materials">Bill of
+Materials</a></li>
+<li><a href="#wiring-and-assembly" id="toc-wiring-and-assembly">Wiring
+and Assembly</a>
+<ul>
+<li><a href="#power-rail-setup" id="toc-power-rail-setup">Power Rail
+Setup</a></li>
+<li><a href="#pin-connections" id="toc-pin-connections">Pin
+Connections</a></li>
+</ul></li>
+<li><a href="#software-setup" id="toc-software-setup">Software Setup</a>
+<ul>
+<li><a href="#step-1-install-arduino-ide-and-esp32-board-support"
+id="toc-step-1-install-arduino-ide-and-esp32-board-support">Step 1:
+Install Arduino IDE and ESP32 Board Support</a></li>
+<li><a href="#step-2-install-required-libraries"
+id="toc-step-2-install-required-libraries">Step 2: Install Required
+Libraries</a></li>
+<li><a href="#step-3-prepare-the-code-files"
+id="toc-step-3-prepare-the-code-files">Step 3: Prepare the Code
+Files</a></li>
+<li><a href="#step-4-upload-to-main-esp32-dev-board"
+id="toc-step-4-upload-to-main-esp32-dev-board">Step 4: Upload to Main
+ESP32 Dev Board</a></li>
+<li><a href="#step-5-upload-to-esp32-cam-using-cp2102-adapter"
+id="toc-step-5-upload-to-esp32-cam-using-cp2102-adapter">Step 5: Upload
+to ESP32-CAM Using CP2102 Adapter</a></li>
+<li><a href="#step-6-final-system-check"
+id="toc-step-6-final-system-check">Step 6: Final System Check</a></li>
+</ul></li>
+<li><a href="#testing-and-operation"
+id="toc-testing-and-operation">Testing and Operation</a></li>
+<li><a href="#troubleshooting"
+id="toc-troubleshooting">Troubleshooting</a>
+<ul>
+<li><a href="#cam-board-not-responding-or-cam-did-not-report-ready"
+id="toc-cam-board-not-responding-or-cam-did-not-report-ready">CAM board
+not responding or "CAM did not report ready"</a></li>
+<li><a href="#rfid-card-not-detected"
+id="toc-rfid-card-not-detected">RFID card not detected</a></li>
+<li><a href="#sd-card-write-errors-on-esp32-cam"
+id="toc-sd-card-write-errors-on-esp32-cam">SD card write errors on
+ESP32-CAM</a></li>
+<li><a href="#photos-not-streaming-back-to-main-board"
+id="toc-photos-not-streaming-back-to-main-board">Photos not streaming
+back to main board</a></li>
+<li><a href="#leds-not-lighting-correctly"
+id="toc-leds-not-lighting-correctly">LEDs not lighting
+correctly</a></li>
+<li><a href="#general-upload-issues"
+id="toc-general-upload-issues">General upload issues</a></li>
+</ul></li>
+<li><a href="#notes-for-instructors"
+id="toc-notes-for-instructors">Notes for Instructors</a></li>
+</ul></li>
+</ul>
+</nav>
+<h1 id="esp32-security-system-tutorial">ESP32 Security System
+Tutorial</h1>
+<p><em>Arduino-based door alarm with RFID arming, reed switch trigger,
+and ESP32-CAM photo capture</em></p>
+<h2 id="project-overview">Project Overview</h2>
+<p>This project builds a simple security system using two ESP32
+boards:</p>
+<ul>
+<li><strong>Main ESP32 Dev Board</strong>: Reads an RFID card for
+arming/disarming, monitors a magnetic reed switch on a door, controls
+status LEDs, and coordinates with the camera board.</li>
+<li><strong>ESP32-CAM Board</strong>: Listens for commands over UART.
+When it receives "PHOTO", it takes three pictures, saves them to a
+microSD card, and sends the last image back to the main board.</li>
+</ul>
+<p><strong>How it works</strong>:</p>
+<ol type="1">
+<li>User taps an authorized RFID card to arm the system (green LED
+on).</li>
+<li>If the door opens (reed switch triggers) while armed, the main board
+sends a "PHOTO" command via UART to the CAM board.</li>
+<li>The CAM board captures three photos, saves all to the SD card, and
+streams the last photo back to the main board.</li>
+<li>User taps the RFID card again to disarm (red LED on).</li>
+</ol>
+<p><strong>Key concepts for students</strong>: UART communication, SPI
+for RFID, GPIO input/output, task scheduling on dual-core ESP32, SD card
+file writing.</p>
+<hr />
+<h2 id="bill-of-materials">Bill of Materials</h2>
+<table>
+<thead>
+<tr class="header">
+<th>Component</th>
+<th>Quantity</th>
+<th>Notes</th>
+<th>Example Purchase Link</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>ESP32 Dev Board (Dev Module)</td>
+<td>1</td>
+<td>Main controller, has USB port</td>
+<td><a href="https://www.amazon.com/dp/B0D8T53CQ5">Amazon</a></td>
+</tr>
+<tr class="even">
+<td>AI Thinker ESP32-CAM</td>
+<td>1</td>
+<td>Camera module with microSD slot, no USB port</td>
+<td><a href="https://www.amazon.com/dp/B09TB1GJ7P">Amazon</a></td>
+</tr>
+<tr class="odd">
+<td>CP2102 USB-to-TTL Adapter</td>
+<td>1</td>
+<td>For flashing the ESP32-CAM</td>
+<td><a href="https://www.amazon.com/dp/B00LODGRV8">Amazon</a></td>
+</tr>
+<tr class="even">
+<td>MFRC522 RFID Module</td>
+<td>1</td>
+<td>Includes RFID card/tag</td>
+<td>(add your link)</td>
+</tr>
+<tr class="odd">
+<td>Magnetic Reed Switch</td>
+<td>1</td>
+<td>Normally open type</td>
+<td><a
+href="https://www.amazon.com/gp/product/B07S58HH3Q">Amazon</a></td>
+</tr>
+<tr class="even">
+<td>MicroSD Card</td>
+<td>1</td>
+<td>32GB, FAT32 formatted</td>
+<td><a href="https://www.amazon.com/dp/B0749KG1JK">Amazon</a></td>
+</tr>
+<tr class="odd">
+<td>LEDs (Red, Green)</td>
+<td>1 each</td>
+<td>5mm or 3mm</td>
+<td>(add your link)</td>
+</tr>
+<tr class="even">
+<td>Resistors</td>
+<td>2x 220 ohm</td>
+<td>For LED current limiting</td>
+<td>(add your link)</td>
+</tr>
+<tr class="odd">
+<td>Breadboard + Jumper Wires</td>
+<td>1 set</td>
+<td>Dual power rails recommended</td>
+<td>(add your link)</td>
+</tr>
+<tr class="even">
+<td>External Power Supply</td>
+<td>1</td>
+<td>Provides both 5V and 3.3V rails</td>
+<td>(specify yours)</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Power note</strong>: All logic signals (GPIO pins) on ESP32
+boards operate at 3.3V. The RC522 RFID module and reed switch in this
+project are powered at 3.3V. The ESP32-CAM is powered at 5V via its 5V
+pin, but its GPIO pins remain 3.3V logic.</p>
+<hr />
+<h2 id="wiring-and-assembly">Wiring and Assembly</h2>
+<p>[INSERT YOUR TINKERCAD DIAGRAM HERE: Full system overview]</p>
+<h3 id="power-rail-setup">Power Rail Setup</h3>
+<ol type="1">
+<li>Set up your breadboard with two separate power rails:
+<ul>
+<li><strong>5V rail</strong>: Connect to the ESP32-CAM 5V pin and to the
+anodes of the LEDs (through 220 ohm resistors).</li>
+<li><strong>3.3V rail</strong>: Connect to the ESP32 Dev Board 3.3V pin,
+the RC522 VCC pin, and one side of the reed switch.</li>
+</ul></li>
+<li>Connect all ground (GND) pins together: ESP32 Dev Board GND,
+ESP32-CAM GND, RC522 GND, reed switch GND side, and power supply GND.
+This common ground is essential for communication.</li>
+<li><strong>Important when flashing the main ESP32 via USB</strong>:
+Temporarily disconnect the 5V VIN wire that runs from the external power
+supply to the main ESP32 breadboard connection. Keep the GND connection
+intact. This prevents conflict between USB power and the external
+supply. Reconnect the VIN wire after uploading code.</li>
+</ol>
+<h3 id="pin-connections">Pin Connections</h3>
+<p>[INSERT CLOSE-UP DIAGRAMS HERE for: Main ESP32 connections, ESP32-CAM
+connections, UART cross-connection]</p>
+<h4 id="main-esp32-dev-board-connections">Main ESP32 Dev Board
+Connections</h4>
+<table>
+<thead>
+<tr class="header">
+<th>Main ESP32 Pin</th>
+<th>Connects To</th>
+<th>Notes</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>3.3V</td>
+<td>RC522 VCC, one side of reed switch</td>
+<td>All logic at 3.3V</td>
+</tr>
+<tr class="even">
+<td>GND</td>
+<td>RC522 GND, reed switch other side, ESP32-CAM GND, LED cathodes</td>
+<td>Common ground</td>
+</tr>
+<tr class="odd">
+<td>GPIO 14</td>
+<td>Reed switch signal side</td>
+<td>Configured as INPUT in code</td>
+</tr>
+<tr class="even">
+<td>GPIO 19</td>
+<td>Green LED anode (via 220 ohm resistor)</td>
+<td>Cathode to GND</td>
+</tr>
+<tr class="odd">
+<td>GPIO 18</td>
+<td>Red LED anode (via 220 ohm resistor)</td>
+<td>Cathode to GND</td>
+</tr>
+<tr class="even">
+<td>GPIO 17 (TX2)</td>
+<td>ESP32-CAM GPIO 3 (U0RXD)</td>
+<td>UART2 transmit to CAM receive</td>
+</tr>
+<tr class="odd">
+<td>GPIO 16 (RX2)</td>
+<td>ESP32-CAM GPIO 1 (U0TXD)</td>
+<td>UART2 receive from CAM transmit</td>
+</tr>
+<tr class="even">
+<td>GPIO 26</td>
+<td>RC522 SDA (MOSI)</td>
+<td>SPI data</td>
+</tr>
+<tr class="odd">
+<td>GPIO 32</td>
+<td>RC522 SCK</td>
+<td>SPI clock</td>
+</tr>
+<tr class="even">
+<td>GPIO 33</td>
+<td>RC522 MOSI</td>
+<td>SPI master out</td>
+</tr>
+<tr class="odd">
+<td>GPIO 25</td>
+<td>RC522 MISO</td>
+<td>SPI master in</td>
+</tr>
+<tr class="even">
+<td>GPIO 27</td>
+<td>RC522 RST</td>
+<td>Reset pin</td>
+</tr>
+</tbody>
+</table>
+<h4 id="esp32-cam-uart-pin-reference">ESP32-CAM UART Pin Reference</h4>
+<p>The AI Thinker ESP32-CAM has two pins labeled <strong>U0RXD</strong>
+and <strong>U0TXD</strong> located just above the GND pin on the board
+edge. These correspond to:</p>
+<ul>
+<li><strong>U0RXD = GPIO 3</strong> (receive pin for UART0)</li>
+<li><strong>U0TXD = GPIO 1</strong> (transmit pin for UART0)</li>
+</ul>
+<p>Connect these to the main board as shown in the table above.
+Double-check this cross-connection: TX on one board must go to RX on the
+other.</p>
+<h4 id="esp32-cam-flashing-setup-cp2102-adapter">ESP32-CAM Flashing
+Setup (CP2102 Adapter)</h4>
+<p>[INSERT DIAGRAM: CP2102 to ESP32-CAM wiring]</p>
+<table>
+<thead>
+<tr class="header">
+<th>CP2102 Pin</th>
+<th>ESP32-CAM Pin</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>3.3V</td>
+<td>3.3V</td>
+<td>Power during flash only (do not use 5V)</td>
+</tr>
+<tr class="even">
+<td>GND</td>
+<td>GND</td>
+<td>Common ground</td>
+</tr>
+<tr class="odd">
+<td>TX</td>
+<td>GPIO 1 (U0TXD)</td>
+<td>Data to CAM receive pin</td>
+</tr>
+<tr class="even">
+<td>RX</td>
+<td>GPIO 3 (U0RXD)</td>
+<td>Data from CAM transmit pin</td>
+</tr>
+<tr class="odd">
+<td>GND</td>
+<td>GPIO 0</td>
+<td>Hold LOW to enter flash mode</td>
+</tr>
+</tbody>
+</table>
+<p><strong>Flashing steps</strong>:</p>
+<ol type="1">
+<li>Wire the CP2102 adapter as shown above, ensuring GPIO 0 is connected
+to GND.</li>
+<li>In Arduino IDE, select Board: "AI Thinker ESP32-CAM".</li>
+<li>Upload the <code>cam_board.cpp</code> sketch.</li>
+<li>After upload completes, remove the wire from GPIO 0, then press the
+ESP32-CAM's EN/RST button to restart.</li>
+<li>Open Serial Monitor at 115200 baud. You should see "CAM_READY".</li>
+</ol>
+<p>For detailed visual instructions, follow the guide you
+referenced:<br />
+<a
+href="https://randomnerdtutorials.com/program-upload-code-esp32-cam/">Random
+Nerd Tutorials: Program ESP32-CAM</a></p>
+<h4 id="sd-card-preparation">SD Card Preparation</h4>
+<ul>
+<li>Format your 32GB microSD card as FAT32 using the <a
+href="https://www.sdcard.org/downloads/formatter/">SD Memory Card
+Formatter</a>.</li>
+<li>Insert the card into the ESP32-CAM slot before powering on the
+board.</li>
+<li>Photos will be saved with filenames like <code>/photo_1.jpg</code>,
+<code>/photo_2.jpg</code>, etc.</li>
+</ul>
+<hr />
+<h2 id="software-setup">Software Setup</h2>
+<h3 id="step-1-install-arduino-ide-and-esp32-board-support">Step 1:
+Install Arduino IDE and ESP32 Board Support</h3>
+<ol type="1">
+<li>Download and install the Arduino IDE from <a
+href="https://www.arduino.cc/en/software">https://www.arduino.cc/en/software</a></li>
+<li>Open the Arduino IDE.</li>
+<li>Go to File &gt; Preferences.</li>
+<li>In the "Additional Boards Manager URLs" field, paste:
+<pre><code>https://raw.githubusercontent.com/espressif/arduino-esp32/gh-pages/package_esp32_index.json</code></pre></li>
+<li>Go to Tools &gt; Board &gt; Boards Manager.</li>
+<li>Search for "esp32" and install "ESP32 by Espressif Systems" (version
+2.0.17 or later).</li>
+<li>Restart the Arduino IDE.</li>
+</ol>
+<h3 id="step-2-install-required-libraries">Step 2: Install Required
+Libraries</h3>
+<ol type="1">
+<li>In Arduino IDE, go to Tools &gt; Manage Libraries.</li>
+<li>Search for and install:
+<ul>
+<li><code>MFRC522</code> by Miguel Balboa (version 1.4.12 or later)</li>
+</ul></li>
+<li>Note: The <code>esp_camera</code> library used by the CAM board is
+built into the ESP32 board package and does not need separate
+installation.</li>
+</ol>
+<h3 id="step-3-prepare-the-code-files">Step 3: Prepare the Code
+Files</h3>
+<p>Save the provided code files as separate <code>.ino</code> files in
+the same project folder:</p>
+<ul>
+<li><code>main_board.ino</code> (for the main ESP32 Dev Board)</li>
+<li><code>cam_board.ino</code> (for the ESP32-CAM)</li>
+</ul>
+<h4 id="configuring-main_boardino">Configuring main_board.ino</h4>
+<ol type="1">
+<li>Open <code>main_board.ino</code> in Arduino IDE.</li>
+<li>Find your RFID card's UID:
+<ul>
+<li>Upload the code temporarily without changes.</li>
+<li>Open Serial Monitor at 115200 baud.</li>
+<li>Tap your authorized RFID card near the reader.</li>
+<li>Note the printed UID (e.g., <code>F9 49 B0 05</code>).</li>
+<li>Stop the upload, then edit line 25 to match your card:
+<div class="sourceCode" id="cb2"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb2-1"><a href="#cb2-1" aria-hidden="true" tabindex="-1"></a>byte authorizedUID<span class="op">[</span><span class="dv">4</span><span class="op">]</span> <span class="op">=</span> <span class="op">{</span><span class="bn">0xF9</span><span class="op">,</span> <span class="bn">0x49</span><span class="op">,</span> <span class="bn">0xB0</span><span class="op">,</span> <span class="bn">0x05</span><span class="op">};</span> <span class="co">// Replace with YOUR UID bytes</span></span></code></pre></div></li>
+</ul></li>
+<li>Verify the pin definitions match your wiring (lines 10-17):
+<div class="sourceCode" id="cb3"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb3-1"><a href="#cb3-1" aria-hidden="true" tabindex="-1"></a><span class="pp">#define REED_PIN </span><span class="dv">14</span></span>
+<span id="cb3-2"><a href="#cb3-2" aria-hidden="true" tabindex="-1"></a><span class="pp">#define CAM_TX </span><span class="dv">17</span><span class="pp">   </span><span class="co">// Main TX -&gt; CAM RX (GPIO 3)</span></span>
+<span id="cb3-3"><a href="#cb3-3" aria-hidden="true" tabindex="-1"></a><span class="pp">#define CAM_RX </span><span class="dv">16</span><span class="pp">   </span><span class="co">// Main RX &lt;- CAM TX (GPIO 1)</span></span>
+<span id="cb3-4"><a href="#cb3-4" aria-hidden="true" tabindex="-1"></a><span class="pp">#define RC_SDA </span><span class="dv">26</span><span class="pp">   </span><span class="co">// SPI pins for RC522</span></span>
+<span id="cb3-5"><a href="#cb3-5" aria-hidden="true" tabindex="-1"></a><span class="pp">#define RC_SCK </span><span class="dv">32</span></span>
+<span id="cb3-6"><a href="#cb3-6" aria-hidden="true" tabindex="-1"></a><span class="pp">#define RC_MOS </span><span class="dv">33</span></span>
+<span id="cb3-7"><a href="#cb3-7" aria-hidden="true" tabindex="-1"></a><span class="pp">#define RC_IMI </span><span class="dv">25</span></span>
+<span id="cb3-8"><a href="#cb3-8" aria-hidden="true" tabindex="-1"></a><span class="pp">#define RC_RST </span><span class="dv">27</span></span></code></pre></div></li>
+</ol>
+<h4 id="configuring-cam_boardino">Configuring cam_board.ino</h4>
+<ol type="1">
+<li>Open <code>cam_board.ino</code> in Arduino IDE.</li>
+<li>The camera configuration (lines 13-35) is pre-set for the AI Thinker
+ESP32-CAM. No changes are needed for standard hardware.</li>
+<li>Optional: Adjust photo settings if desired:
+<div class="sourceCode" id="cb4"><pre
+class="sourceCode cpp"><code class="sourceCode cpp"><span id="cb4-1"><a href="#cb4-1" aria-hidden="true" tabindex="-1"></a>config<span class="op">.</span>frame_size <span class="op">=</span> FRAMESIZE_VGA<span class="op">;</span>  <span class="co">// Options: FRAMESIZE_CIF, VGA, SVGA, etc.</span></span>
+<span id="cb4-2"><a href="#cb4-2" aria-hidden="true" tabindex="-1"></a>config<span class="op">.</span>jpeg_quality <span class="op">=</span> <span class="dv">10</span><span class="op">;</span>           <span class="co">// Lower number = better quality, larger file size</span></span></code></pre></div></li>
+</ol>
+<h3 id="step-4-upload-to-main-esp32-dev-board">Step 4: Upload to Main
+ESP32 Dev Board</h3>
+<ol type="1">
+<li>Connect the main ESP32 Dev Board to your computer via USB
+cable.</li>
+<li>In Arduino IDE, configure:
+<ul>
+<li>Board: "ESP32 Dev Module"</li>
+<li>Port: [Select your COM port]</li>
+<li>Upload Speed: 921600 (faster) or 115200 (more reliable)</li>
+</ul></li>
+<li><strong>Critical</strong>: Disconnect the 5V VIN wire from the
+breadboard connection to the main ESP32 (keep GND connected).</li>
+<li>Click the Upload button.</li>
+<li>After upload completes, reconnect the VIN wire to restore full power
+from the external supply.</li>
+</ol>
+<h3 id="step-5-upload-to-esp32-cam-using-cp2102-adapter">Step 5: Upload
+to ESP32-CAM Using CP2102 Adapter</h3>
+<ol type="1">
+<li>Wire the CP2102 adapter to the ESP32-CAM as described in the Wiring
+section.</li>
+<li>In Arduino IDE, configure:
+<ul>
+<li>Board: "AI Thinker ESP32-CAM"</li>
+<li>Port: [Select the CP2102 COM port]</li>
+<li>Ensure GPIO 0 is grounded during upload</li>
+</ul></li>
+<li>Click Upload.</li>
+<li>After upload:
+<ul>
+<li>Remove the wire connecting GPIO 0 to GND.</li>
+<li>Press the ESP32-CAM's EN/RST button to restart.</li>
+<li>Open Serial Monitor at 115200 baud. You should see "CAM_READY".</li>
+</ul></li>
+</ol>
+<h3 id="step-6-final-system-check">Step 6: Final System Check</h3>
+<ol type="1">
+<li>Power both boards using the external power supply (ensure all wires
+are reconnected).</li>
+<li>Open Serial Monitor for the main board at 115200 baud.</li>
+<li>Expected startup output:
+<pre><code>====================================
+   Anti-Theft System
+   Main ESP32
+====================================
+Image buffer allocated (50 KB)
+RFID scanner initialized.
+UART2  -&gt;  ESP32-CAM
+Waiting for peripherals...
+  CAM: CAM_READY
+System ready - DISARMED</code></pre></li>
+<li>If you see "System ready - DISARMED", both boards are communicating
+correctly.</li>
+</ol>
+<hr />
+<h2 id="testing-and-operation">Testing and Operation</h2>
+<ol type="1">
+<li><strong>Arm the system</strong>: Tap the authorized RFID card near
+the reader. The green LED should turn on, and the Serial Monitor should
+display "System armed via RFID".</li>
+<li><strong>Trigger the alarm</strong>: Open the door (separate the reed
+switch contacts). Observe:
+<ul>
+<li>Serial Monitor shows:
+<code>*** ALARM TRIGGERED: Door Opened ***</code></li>
+<li>The ESP32-CAM saves three photos to the SD card
+(<code>/photo_1.jpg</code>, <code>/photo_2.jpg</code>,
+<code>/photo_3.jpg</code>)</li>
+<li>The last photo is streamed back to the main board and buffered in
+memory</li>
+</ul></li>
+<li><strong>Disarm the system</strong>: Tap the authorized RFID card
+again. The red LED should turn on, and the Serial Monitor should display
+"System disarmed via RFID".</li>
+<li><strong>View captured photos</strong>: Power down the system, remove
+the microSD card from the ESP32-CAM, and insert it into a computer. Open
+the <code>photo_*.jpg</code> files with any image viewer.</li>
+</ol>
+<hr />
+<h2 id="troubleshooting">Troubleshooting</h2>
+<h3 id="cam-board-not-responding-or-cam-did-not-report-ready">CAM board
+not responding or "CAM did not report ready"</h3>
+<ul>
+<li><strong>Check UART wiring</strong>: Verify that Main GPIO 17
+connects to CAM GPIO 3 (U0RXD), and Main GPIO 16 connects to CAM GPIO 1
+(U0TXD). TX must go to RX.</li>
+<li><strong>Check common ground</strong>: Ensure all GND pins are
+connected together.</li>
+<li><strong>Check CAM power</strong>: The ESP32-CAM 5V pin must be
+connected to the 5V rail. During normal operation, GPIO 0 should not be
+grounded.</li>
+<li><strong>Check Serial Monitor baud rate</strong>: Both boards use
+115200 baud. Ensure your monitor is set correctly.</li>
+<li><strong>Re-flash the CAM board</strong>: Follow the flashing steps
+again, ensuring GPIO 0 is grounded only during upload.</li>
+</ul>
+<h3 id="rfid-card-not-detected">RFID card not detected</h3>
+<ul>
+<li><strong>Check SPI wiring</strong>: Verify connections for SDA, SCK,
+MOSI, MISO, RST, and GND between the main ESP32 and RC522.</li>
+<li><strong>Check RC522 power</strong>: The module VCC should be
+connected to 3.3V (not 5V) as confirmed in your build.</li>
+<li><strong>Check antenna orientation</strong>: Hold the RFID card flat
+against the reader module for best results.</li>
+<li><strong>Verify UID in code</strong>: Ensure the
+<code>authorizedUID</code> array in <code>main_board.ino</code> exactly
+matches your card's printed UID bytes.</li>
+</ul>
+<h3 id="sd-card-write-errors-on-esp32-cam">SD card write errors on
+ESP32-CAM</h3>
+<ul>
+<li><strong>Format as FAT32</strong>: Use the official SD Memory Card
+Formatter tool. Do not use exFAT or NTFS.</li>
+<li><strong>Check card insertion</strong>: Ensure the microSD card is
+fully seated in the slot.</li>
+<li><strong>Check card capacity</strong>: The project was tested with a
+32GB card. Larger cards may require additional configuration.</li>
+<li><strong>Power stability</strong>: The ESP32-CAM draws significant
+current during photo capture. Ensure your 5V supply can provide at least
+500mA.</li>
+</ul>
+<h3 id="photos-not-streaming-back-to-main-board">Photos not streaming
+back to main board</h3>
+<ul>
+<li><strong>Check UART buffer settings</strong>: The main board code
+sets <code>Serial2.setRxBufferSize(2048)</code>. Do not change this
+unless you also adjust the receive logic.</li>
+<li><strong>Check for interference</strong>: Keep UART wires short and
+away from high-current paths.</li>
+<li><strong>Verify protocol timing</strong>: The CAM board sends
+"IMG:<size>" followed by raw bytes and "IMG_END". Ensure no extra serial
+output is interfering.</li>
+</ul>
+<h3 id="leds-not-lighting-correctly">LEDs not lighting correctly</h3>
+<ul>
+<li><strong>Check resistor orientation</strong>: LEDs are polarized. The
+longer leg (anode) connects to the GPIO pin through the resistor; the
+shorter leg (cathode) connects to GND.</li>
+<li><strong>Check GPIO definitions</strong>: Verify that
+<code>LED_GREEN</code> and <code>LED_RED</code> in the code match your
+physical wiring (GPIO 19 and 18 by default).</li>
+<li><strong>Check power rail</strong>: LED anodes should connect to the
+5V rail through resistors; cathodes to GND.</li>
+</ul>
+<h3 id="general-upload-issues">General upload issues</h3>
+<ul>
+<li><strong>ESP32 Dev Board not detected</strong>: Try a different USB
+cable. Some cables are power-only.</li>
+<li><strong>ESP32-CAM upload fails</strong>: Ensure GPIO 0 is grounded
+during upload, and that you have selected "AI Thinker ESP32-CAM" as the
+board.</li>
+<li><strong>Port not listed</strong>: Install CP2102 drivers from <a
+href="https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers">https://www.silabs.com/developers/usb-to-uart-bridge-vcp-drivers</a>
+if using Windows.</li>
+</ul>
+<hr />
+<h2 id="notes-for-instructors">Notes for Instructors</h2>
+<ul>
+<li><strong>Estimated build time</strong>: 2-3 lab sessions for freshman
+students.</li>
+<li><strong>Key learning objectives</strong>: UART communication, SPI
+protocol, GPIO configuration, task scheduling on dual-core
+microcontrollers, file system operations.</li>
+<li><strong>Common student pitfalls</strong>: Reversing UART TX/RX
+connections, forgetting common ground, incorrect RFID UID entry, SD card
+not formatted as FAT32.</li>
+<li><strong>Extension ideas</strong>: Add WiFi to upload photos to a
+server, implement a keypad for PIN-based arming, add a buzzer for
+audible alarm.</li>
+</ul>
+<hr />
+<p>This tutorial is provided in Markdown format for easy editing. You
+can convert it to DOCX, PDF, or HTML using standard tools. All code
+references match the uploaded <code>main_board.cpp</code> and
+<code>cam_board.cpp</code> files.</p>
+</body>
+</html>
