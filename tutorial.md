@@ -1,6 +1,8 @@
 # ESP32 Security System Tutorial
 *Arduino-based door alarm with RFID arming, reed switch trigger, and ESP32-CAM photo capture*
 
+[Video Demo!](https://youtu.be/lcdtWoCZPhM)
+
 ## Project Overview
 
 This project builds a simple security system using two ESP32 boards:
@@ -80,7 +82,9 @@ Connect these to the main board as shown in the table above. Double-check this c
 
 #### ESP32-CAM Flashing Setup (CP2102 Adapter)
 
-[INSERT DIAGRAM: CP2102 to ESP32-CAM wiring]
+This wiring is ONLY for when you need to flash (program) the CAM board.
+
+![CAM Flash Wiring Diagram](./ESP32-CAM-FTDI-programmer.webp)
 
 | CP2102 Pin | ESP32-CAM Pin  | Purpose                                 |
 | ---------- | -------------- | --------------------------------------- |
